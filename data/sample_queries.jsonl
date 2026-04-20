@@ -1,10 +1,10 @@
-{"user_id":"u01","session_id":"s01","feature":"qa","message":"What is your refund policy? My email is student@vinuni.edu.vn"}
-{"user_id":"u02","session_id":"s02","feature":"qa","message":"Explain why metrics traces and logs work together"}
-{"user_id":"u03","session_id":"s03","feature":"summary","message":"Summarize the monitoring policy for production logging"}
-{"user_id":"u04","session_id":"s04","feature":"qa","message":"Can I get help with policy and monitoring?"}
-{"user_id":"u05","session_id":"s05","feature":"qa","message":"Here is my phone 0987654321, what should be logged?"}
-{"user_id":"u06","session_id":"s06","feature":"summary","message":"Give me a short summary of the observability workflow"}
-{"user_id":"u07","session_id":"s07","feature":"qa","message":"What should not appear in app logs?"}
-{"user_id":"u08","session_id":"s08","feature":"qa","message":"How do I debug tail latency?"}
-{"user_id":"u09","session_id":"s09","feature":"qa","message":"What is the policy for PII and credit card 4111 1111 1111 1111?"}
-{"user_id":"u10","session_id":"s10","feature":"qa","message":"How should alerts be designed?"}
+{"user_id":"u01","session_id":"s01","feature":"qa","message":"Toi moi choi, ngan sach 1.5 trieu thi nen mua vot pickleball nao?"}
+{"user_id":"u02","session_id":"s02","feature":"qa","message":"Minh danh ngoai troi, can bong ben va de kiem soat"}
+{"user_id":"u03","session_id":"s03","feature":"qa","message":"Tu van combo day du cho nguoi moi: vot, bong, overgrip, tui"}
+{"user_id":"u04","session_id":"s04","feature":"qa","message":"Trinh do trung cap muon danh spin, nen chon vot nao?"}
+{"user_id":"u05","session_id":"s05","feature":"qa","message":"Co phu kien nao giup bam tay tot khi do mo hoi khong?"}
+{"user_id":"u06","session_id":"s06","feature":"summary","message":"Tom tat nhanh bo do pickleball can thiet de bat dau"}
+{"user_id":"u07","session_id":"s07","feature":"qa","message":"Toi hay dau o kitchen, uu tien cam giac mem tay thi nen chon vot nao?"}
+{"user_id":"u08","session_id":"s08","feature":"qa","message":"Giup toi tu van giay va kinh bao ho khi danh doi toc do cao"}
+{"user_id":"u09","session_id":"s09","feature":"qa","message":"Ngan sach 4 trieu muon vot tan cong manh va tuy chinh do nang dau vot"}
+{"user_id":"u10","session_id":"s10","feature":"qa","message":"Nen mua tui nao de dung 2 cay vot va 1 doi giay?"}

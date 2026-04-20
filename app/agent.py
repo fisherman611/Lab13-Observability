@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
 
 from . import metrics
 from .mock_llm import FakeLLM
-from .mock_rag import retrieve
+from .nvidia_llm import NvidiaLLM
 from .pii import hash_user_id, summarize_text
+from .rag import retrieve
 from .tracing import langfuse_context, observe
 
 
@@ -21,16 +23,40 @@ class AgentResult:
 
 
 class LabAgent:
-    def __init__(self, model: str = "claude-sonnet-4-5") -> None:
-        self.model = model
-        self.llm = FakeLLM(model=model)
+    def __init__(self, model: str | None = None) -> None:
+        use_mock = os.getenv("USE_MOCK_LLM", "false").lower() in {"1", "true", "yes"}
+
+        if use_mock:
+            selected_model = model or "mock-llm"
+            self.llm = FakeLLM(model=selected_model)
+            self.model = selected_model
+        else:
+            self.llm = NvidiaLLM(model=model)
+            self.model = self.llm.model
+
+        self.system_prompt = (
+            "You are a Vietnamese shopping assistant for a pickleball store. "
+            "Give practical recommendations with short bullet points. "
+            "Use only the retrieved catalog context when naming products and prices. "
+            "When user budget or level is missing, ask one concise follow-up question."
+        )
 
     @observe()
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
-        docs = retrieve(message)
-        prompt = f"Feature={feature}\nDocs={docs}\nQuestion={message}"
-        response = self.llm.generate(prompt)
+        docs = retrieve(message, top_k=4)
+        doc_block = "\n".join(f"- {doc}" for doc in docs)
+        prompt = (
+            f"Feature: {feature}\n"
+            f"Retrieved Catalog Context:\n{doc_block}\n\n"
+            f"User Question: {message}\n\n"
+            "Response format:\n"
+            "1) Nhu cau nguoi dung (1 dong)\n"
+            "2) De xuat san pham (2-4 goi y cu the, kem ly do va gia)\n"
+            "3) Combo phu kien nen mua kem\n"
+            "4) Luu y su dung bao quan ngan gon"
+        )
+        response = self.llm.generate(prompt, system_prompt=self.system_prompt)
         quality_score = self._heuristic_quality(message, response.text, docs)
         latency_ms = int((time.perf_counter() - started) * 1000)
         cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)

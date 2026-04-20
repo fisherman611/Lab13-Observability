@@ -2,6 +2,8 @@
 
 Template repo for a 4-hour hands-on lab on Monitoring, Logging, and Observability.
 
+Current scenario: a FastAPI chatbot that uses a real NVIDIA LLM plus RAG over a pickleball store catalog (paddles, balls, shoes, grips, bags, accessories).
+
 ## What students will build
 
 A small FastAPI "agent" instrumented with:
@@ -32,6 +34,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+# Set NVIDIA_API_KEY in .env (USE_MOCK_LLM=false to use real model)
 uvicorn app.main:app --reload
 ```
 
@@ -54,6 +57,8 @@ python scripts/validate_logs.py
 app/
   main.py                FastAPI app
   agent.py               core agent pipeline
+  nvidia_llm.py          NVIDIA API client (real LLM)
+  rag.py                 catalog retrieval for pickleball products
   logging_config.py      structlog config
   middleware.py          correlation ID middleware
   pii.py                 scrubbing helpers
@@ -61,8 +66,7 @@ app/
   schemas.py             request/response/log models
   metrics.py             in-memory metrics helpers
   incidents.py           toggles for injected failures
-  mock_llm.py            deterministic fake LLM
-  mock_rag.py            deterministic fake retrieval
+  mock_llm.py            optional fallback fake LLM
 config/
   slo.yaml               starter SLOs
   alert_rules.yaml       starter alerts
@@ -72,6 +76,7 @@ scripts/
   inject_incident.py     flip incident toggles
   validate_logs.py       schema checks for logs
 data/
+  pickleball_catalog.json product knowledge base for RAG
   sample_queries.jsonl   requests for testing
   expected_answers.jsonl starter quality checks
   incidents.json         scenario descriptions

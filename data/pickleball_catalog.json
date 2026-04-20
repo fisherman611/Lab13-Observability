@@ -1,0 +1,110 @@
+[
+  {
+    "sku": "PDL-001",
+    "name": "AeroLite Start 13mm",
+    "category": "paddle",
+    "level": "beginner",
+    "price_vnd": 1290000,
+    "tags": ["lightweight", "control", "carbon-face"],
+    "description": "Paddle nhe, de danh cho nguoi moi, uu tien kiem soat bong va cam giac de lam quen."
+  },
+  {
+    "sku": "PDL-002",
+    "name": "CoreDrive Balance 14mm",
+    "category": "paddle",
+    "level": "beginner",
+    "price_vnd": 1690000,
+    "tags": ["all-round", "forgiving", "wide-body"],
+    "description": "Paddle can bang cong-thu, mat vot rong de giam loi hut bong va de canh bong."
+  },
+  {
+    "sku": "PDL-003",
+    "name": "SpinEdge Pro 16mm",
+    "category": "paddle",
+    "level": "intermediate",
+    "price_vnd": 2890000,
+    "tags": ["spin", "power", "raw-carbon"],
+    "description": "Danh cho nguoi choi trung cap muon tang spin va luc danh khi thi dau phong trao."
+  },
+  {
+    "sku": "PDL-004",
+    "name": "ControlMax Elite 16mm",
+    "category": "paddle",
+    "level": "advanced",
+    "price_vnd": 3650000,
+    "tags": ["touch", "soft-feel", "kitchen-game"],
+    "description": "Paddle mem tay, on dinh trong cac pha dink va reset o khu vuc kitchen."
+  },
+  {
+    "sku": "PDL-005",
+    "name": "PowerStrike Tour 14mm",
+    "category": "paddle",
+    "level": "advanced",
+    "price_vnd": 3990000,
+    "tags": ["pop", "aggressive", "counter"],
+    "description": "Paddle cho loi choi tan cong, do nay bong cao, phu hop nguoi co ky thuat tot."
+  },
+  {
+    "sku": "BLL-001",
+    "name": "CourtPro 40 Outdoor",
+    "category": "ball",
+    "level": "all",
+    "price_vnd": 210000,
+    "tags": ["outdoor", "durable", "40-hole"],
+    "description": "Bong ngoai troi 40 lo, do ben cao, duong bay on dinh trong dieu kien gio vua."
+  },
+  {
+    "sku": "BLL-002",
+    "name": "SoftBounce 26 Indoor",
+    "category": "ball",
+    "level": "all",
+    "price_vnd": 190000,
+    "tags": ["indoor", "quiet", "26-hole"],
+    "description": "Bong trong nha 26 lo, do nay vua phai, giam tieng on va de kiem soat."
+  },
+  {
+    "sku": "SHO-001",
+    "name": "QuickStep Court Shoes",
+    "category": "shoes",
+    "level": "all",
+    "price_vnd": 1850000,
+    "tags": ["court-grip", "lateral-support", "breathable"],
+    "description": "Giay danh san co do bam tot, ho tro di chuyen ngang va giam nguy co lat co chan."
+  },
+  {
+    "sku": "BAG-001",
+    "name": "TourPack 6 Paddle Bag",
+    "category": "bag",
+    "level": "all",
+    "price_vnd": 990000,
+    "tags": ["thermal-pocket", "shoe-compartment", "large"],
+    "description": "Tui dung duoc toi da 6 cay vot, co ngan giu nhiet va ngan rieng cho giay."
+  },
+  {
+    "sku": "GRP-001",
+    "name": "DryTac Overgrip 3-Pack",
+    "category": "grip",
+    "level": "all",
+    "price_vnd": 140000,
+    "tags": ["sweat-absorb", "non-slip", "comfort"],
+    "description": "Overgrip tham hut mo hoi, giam tron tay khi choi trong thoi tiet nong am."
+  },
+  {
+    "sku": "WGT-001",
+    "name": "TuneWeight Lead Tape",
+    "category": "accessory",
+    "level": "intermediate",
+    "price_vnd": 120000,
+    "tags": ["customization", "swing-weight", "stability"],
+    "description": "Bang dan can chinh do nang dau vot de tang do dam va do on dinh."
+  },
+  {
+    "sku": "EYE-001",
+    "name": "ClearGuard Protective Glasses",
+    "category": "accessory",
+    "level": "all",
+    "price_vnd": 450000,
+    "tags": ["safety", "anti-fog", "lightweight"],
+    "description": "Kinh bao ho chong mo hoi bam, uu tien an toan mat khi danh doi toc do cao."
+  }
+]
