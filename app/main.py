@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from structlog.contextvars import bind_contextvars
 
@@ -13,11 +17,12 @@ from .metrics import record_error, snapshot
 from .middleware import CorrelationIdMiddleware
 from .pii import hash_user_id, summarize_text
 from .schemas import ChatRequest, ChatResponse
-from .tracing import tracing_enabled
+from .tracing import tracing_enabled, get_langfuse_client
 
 configure_logging()
 log = get_logger()
 app = FastAPI(title="Day 13 Observability Lab")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.add_middleware(CorrelationIdMiddleware)
 agent = LabAgent()
 
@@ -30,6 +35,14 @@ async def startup() -> None:
         env=os.getenv("APP_ENV", "dev"),
         payload={"tracing_enabled": tracing_enabled()},
     )
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    client = get_langfuse_client()
+    if client:
+        client.flush()
+        log.info("langfuse_flushed", service="app")
 
 
 @app.get("/health")

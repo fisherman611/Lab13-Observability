@@ -10,19 +10,26 @@ from structlog.contextvars import bind_contextvars, clear_contextvars
 
 class CorrelationIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Clear context để tránh leak giữa các request
         clear_contextvars()
 
-        correlation_id = request.headers.get("x-request-id") or f"req-{uuid.uuid4().hex[:8]}"
-        
+        # Lấy từ header hoặc tự sinh req-<8-char-hex>
+        correlation_id = (
+            request.headers.get("x-request-id")
+            or f"req-{uuid.uuid4().hex[:8]}"
+        )
+
+        # Bind vào structlog context (tự động xuất hiện trong mọi log)
         bind_contextvars(correlation_id=correlation_id)
-        
+
         request.state.correlation_id = correlation_id
-        
+
         start = time.perf_counter()
         response = await call_next(request)
-        
-        response.headers["x-request-id"] = correlation_id
-        response.headers["x-response-time-ms"] = str(round((time.perf_counter() - start) * 1000, 2))
-        
-        return response
+        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
 
+        # Trả về trong response headers
+        response.headers["x-request-id"] = correlation_id
+        response.headers["x-response-time-ms"] = str(elapsed_ms)
+
+        return response
