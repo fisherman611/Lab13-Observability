@@ -34,7 +34,7 @@ class NvidiaLLM:
         load_dotenv()
         self.api_key = (api_key or os.getenv("NVIDIA_API_KEY", "")).strip()
         self.base_url = (base_url or os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")).rstrip("/")
-        self.model = model or os.getenv("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
+        self.model = model or os.getenv("NVIDIA_MODEL", "nvidia/gpt-oss-20b")
         self.timeout_s = timeout_s
 
         if not self.api_key:

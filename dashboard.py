@@ -241,6 +241,22 @@ with st.sidebar:
         st.markdown("<span class='badge badge-warn'>Tracing OFF</span>", unsafe_allow_html=True)
     st.markdown(f"[🔗 API Endpoint]({API_URL})")
 
+    st.markdown("---")
+    st.markdown("**🧪 INCIDENT INJECTION**")
+    try:
+        base = API_URL.replace("/metrics", "")
+        status_res = requests.get(f"{base}/incidents/status", timeout=2)
+        if status_res.ok:
+            incidents_data = status_res.json()
+            for name, config in incidents_data.items():
+                is_on = config.get("enabled", False)
+                if st.toggle(f"Inject {name}", value=is_on, key=f"tg_{name}") != is_on:
+                    toggle_incident(name, not is_on)
+                if is_on:
+                    st.caption(f"⚠️ {config.get('description', '')}")
+    except:
+        st.caption("Cannot load incidents status")
+
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 def fetch() -> dict:
@@ -264,6 +280,18 @@ def section(icon: str, title: str, status_html: str = "") -> None:
         f"<div class='section-title'>{icon} {title}&nbsp;&nbsp;{status_html}</div>",
         unsafe_allow_html=True,
     )
+
+def toggle_incident(name: str, enable: bool):
+    base = API_URL.replace("/metrics", "")
+    endpoint = f"{base}/incidents/{name}/{'enable' if enable else 'disable'}"
+    try:
+        r = requests.post(endpoint, timeout=3)
+        if r.ok:
+            st.toast(f"✅ Incident {name} {'Enabled' if enable else 'Disabled'}")
+            time.sleep(0.5)
+            st.rerun()
+    except Exception as e:
+        st.error(f"Failed to toggle {name}: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
