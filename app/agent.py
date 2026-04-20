@@ -4,8 +4,8 @@ import time
 from dataclasses import dataclass
 
 from . import metrics
-from .mock_llm import FakeLLM
-from .mock_rag import retrieve
+from .llm import ApiLLM
+from .rag import retrieve
 from .pii import hash_user_id, summarize_text
 from .tracing import langfuse_context, observe
 
@@ -21,15 +21,22 @@ class AgentResult:
 
 
 class LabAgent:
-    def __init__(self, model: str = "claude-sonnet-4-5") -> None:
+    def __init__(self, model: str = "meta/llama-3.1-70b-instruct") -> None:
         self.model = model
-        self.llm = FakeLLM(model=model)
+        self.llm = ApiLLM(model=model)
 
     @observe()
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
         docs = retrieve(message)
-        prompt = f"Feature={feature}\nDocs={docs}\nQuestion={message}"
+        prompt = (
+            "Bạn là chatbot tư vấn mua bán pickleball tại Việt Nam.\n"
+            "Hãy trả lời ngắn gọn, dễ hiểu, và đề xuất 1-2 lựa chọn sản phẩm phù hợp.\n"
+            "Nếu có giá trong tài liệu thì nêu rõ giá VND và tồn kho.\n"
+            f"Feature={feature}\n"
+            f"Knowledge={docs}\n"
+            f"Câu hỏi khách hàng={message}"
+        )
         response = self.llm.generate(prompt)
         quality_score = self._heuristic_quality(message, response.text, docs)
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -41,7 +48,11 @@ class LabAgent:
             tags=["lab", feature, self.model],
         )
         langfuse_context.update_current_observation(
-            metadata={"doc_count": len(docs), "query_preview": summarize_text(message)},
+            metadata={
+                "doc_count": len(docs),
+                "query_preview": summarize_text(message),
+                "domain": "pickleball-commerce",
+            },
             usage_details={"input": response.usage.input_tokens, "output": response.usage.output_tokens},
         )
 
