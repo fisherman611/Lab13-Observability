@@ -3,7 +3,7 @@
 > **Instruction**: Fill in all sections below. This report is designed to be parsed by an automated grading assistant. Ensure all tags (e.g., `[GROUP_NAME]`) are preserved.
 
 ## 1. Team Metadata
-- [GROUP_NAME]: Lab13-Observability-Team
+- [GROUP_NAME]: Day13-Observability-Team
 - [REPO_URL]: https://github.com/fisherman611/Lab13-Observability
 - [MEMBERS]:
   - Member A: Lương Hữu Thành | Role: Logging & PII
@@ -42,7 +42,7 @@
 
 ### 3.3 Alerts & Runbook
 - [ALERT_RULES_SCREENSHOT]: N/A (chưa đính kèm screenshot)
-- [SAMPLE_RUNBOOK_LINK]: [docs/alerts.md#1-high-latency-p95]
+- [SAMPLE_RUNBOOK_LINK]: [High latency runbook](docs/alerts.md#1-high-latency-p95)
 
 ---
 
@@ -59,31 +59,31 @@
 
 ### Lương Hữu Thành
 - [TASKS_COMPLETED]: Triển khai dashboard Streamlit, mở rộng UI dashboard và bổ sung hiển thị metric thực thi.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/2e7477a ; https://github.com/fisherman611/Lab13-Observability/commit/6d78492
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/2e7477aee1d5a0031e0a2e0a9a67d23bf8898240 ; https://github.com/fisherman611/Lab13-Observability/commit/6d78492a9bc2123ac36c7aee0716902bcf5da76f
 
 ### Vũ Như Đức
 - [TASKS_COMPLETED]: Enrich log context trong API; cập nhật module LLM/RAG và luồng test full LLM flow.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/05c914b ; https://github.com/fisherman611/Lab13-Observability/commit/f6610cb
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/05c914ba73b86735eafdf0a8edc6f843d1aef103 ; https://github.com/fisherman611/Lab13-Observability/commit/f6610cb94639faeb97e02842f408ffd1cad87995
 
 ### Nguyễn Tiến Thắng
 - [TASKS_COMPLETED]: Sửa middleware để chuẩn hóa correlation ID/context propagation.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/7c138e0
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/7c138e0b941f9fc2938f3654290a8ab5005ec4b9
 
 ### Hoàng Văn Bắc
 - [TASKS_COMPLETED]: Bổ sung tracing và incident flow; cập nhật phần liên quan middleware/tracing.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/1c25858
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/1c25858a13d4e04b9b4fb458d15102b7ecf52638
 
 ### Trần Anh Tú
 - [TASKS_COMPLETED]: Nâng cấp PII scrubbing trong logging pipeline và cập nhật regex nhận diện dữ liệu nhạy cảm.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/2f53497 ; https://github.com/fisherman611/Lab13-Observability/commit/3a9b6ce
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/2f53497e93f7093039d62c0f14f0740f578c5ad2 ; https://github.com/fisherman611/Lab13-Observability/commit/3a9b6ceb907682ca63b158c68faf69c335d7979d
 
 ### Nguyễn Như Giáp
 - [TASKS_COMPLETED]: Cải tiến UI dashboard và hoàn thiện tích hợp cuối cho lab.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/b33609c ; https://github.com/fisherman611/Lab13-Observability/commit/a6a35d3
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/b33609c9b65c62de92a6c32d103370ae360cc975 ; https://github.com/fisherman611/Lab13-Observability/commit/a6a35d3e67dc7fe80c6603446bb8a0eaa274fb14
 
 ### Vũ Phúc Thành
 - [TASKS_COMPLETED]: Bổ sung bộ test query cho LLM (`data/llm_test_queries.jsonl`) phục vụ kiểm thử end-to-end.
-- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/16ecfc4
+- [EVIDENCE_LINK]: https://github.com/fisherman611/Lab13-Observability/commit/16ecfc4d782670a88c765f1725ae285a40a492e9
 
 ---
 
