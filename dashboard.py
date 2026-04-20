@@ -28,6 +28,8 @@ HEALTH_URL       = os.getenv("HEALTH_URL", CHAT_URL.replace("/chat", "/health"))
 SLO_P95_MS  = 500
 SLO_ERR_PCT = 5.0
 SLO_QUALITY = 0.5
+HISTORY_RETENTION_SEC = 24 * 60 * 60
+TREND_WINDOWS = {"15m": 15 * 60, "30m": 30 * 60, "1h": 60 * 60, "3h": 3 * 60 * 60}
 
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
@@ -39,6 +41,8 @@ if "last_chat_input" not in st.session_state:
     st.session_state.last_chat_input = ""
 if "session_id" not in st.session_state:
     st.session_state.session_id = f"s-dashboard-{int(time.time())}"
+if "metrics_history" not in st.session_state:
+    st.session_state.metrics_history = []
 
 # ─── Page setup ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -293,11 +297,78 @@ def section(icon: str, title: str, status_html: str = "") -> None:
     )
 
 
+def append_metrics_history(data: dict) -> None:
+    now = pd.Timestamp.now(tz="UTC")
+    lat = data.get("latency", {})
+    errs = data.get("errors", {})
+    cost = data.get("cost", {})
+    tok = data.get("tokens", {})
+    qual = data.get("quality", {})
+
+    point = {
+        "ts": now.isoformat(),
+        "latency_p95": float(lat.get("p95", 0)),
+        "error_rate_pct": float(errs.get("error_rate_pct", 0)),
+        "quality_proxy": float(qual.get("proxy_score_avg", 0)),
+        "cost_total_usd": float(cost.get("total_usd", 0)),
+        "tokens_in_total": int(tok.get("in_total", 0)),
+        "tokens_out_total": int(tok.get("out_total", 0)),
+        "traffic": int(data.get("traffic", 0)),
+        "total_errors": int(errs.get("total_errors", 0)),
+    }
+
+    history = st.session_state.metrics_history
+    if history:
+        last = history[-1]
+        last_ts = pd.to_datetime(last.get("ts"), utc=True, errors="coerce")
+        if pd.notna(last_ts):
+            same_snapshot = all(
+                last.get(key) == point[key]
+                for key in (
+                    "latency_p95",
+                    "error_rate_pct",
+                    "quality_proxy",
+                    "cost_total_usd",
+                    "tokens_in_total",
+                    "tokens_out_total",
+                    "traffic",
+                    "total_errors",
+                )
+            )
+            if same_snapshot and (now - last_ts).total_seconds() < 2:
+                return
+
+    history.append(point)
+    cutoff = now - pd.Timedelta(seconds=HISTORY_RETENTION_SEC)
+    st.session_state.metrics_history = [
+        h for h in history if pd.to_datetime(h.get("ts"), utc=True, errors="coerce") >= cutoff
+    ]
+
+
+def metrics_history_df(window_seconds: int) -> pd.DataFrame:
+    history = st.session_state.metrics_history
+    if not history:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(history)
+    if "ts" not in df.columns:
+        return pd.DataFrame()
+
+    df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    df = df.dropna(subset=["ts"]).sort_values("ts")
+    if df.empty:
+        return df
+
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(seconds=window_seconds)
+    return df[df["ts"] >= cutoff]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  PAGE: Overview
 # ═══════════════════════════════════════════════════════════════════════════════
 def page_overview():
     data = fetch()
+    append_metrics_history(data)
 
     lat   = data.get("latency", {})
     errs  = data.get("errors",  {})
@@ -440,6 +511,52 @@ def page_overview():
         </div>
         <div style="font-family:'JetBrains Mono',mono;font-size:.7rem;color:#6b7280;margin-top:4px">{int(bar*100)}% · SLO ≥ {int(SLO_QUALITY*100)}%</div>
         """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    section("📈", "TRENDS")
+    range_col, note_col = st.columns([1, 3])
+    with range_col:
+        selected_window = st.select_slider(
+            "Time window",
+            options=list(TREND_WINDOWS.keys()),
+            value="1h",
+            key="overview_trend_window",
+        )
+    with note_col:
+        st.caption("Default range is 1 hour. SLO reference lines are overlaid on latency, error rate, and quality charts.")
+
+    trend_df = metrics_history_df(TREND_WINDOWS[selected_window])
+    if len(trend_df) < 2:
+        st.info("Need at least 2 snapshots to draw trends. Keep Live Mode on for a few refresh cycles.")
+    else:
+        trend_df = trend_df.set_index("ts")
+        t1, t2, t3 = st.columns(3, gap="medium")
+
+        with t1:
+            st.caption("Latency P95 (ms)")
+            latency_chart = trend_df[["latency_p95"]].copy()
+            latency_chart["SLO"] = SLO_P95_MS
+            st.line_chart(latency_chart, color=["#2563eb", "#ef4444"])
+
+        with t2:
+            st.caption("Error Rate (%)")
+            error_chart = trend_df[["error_rate_pct"]].copy()
+            error_chart["SLO"] = SLO_ERR_PCT
+            st.line_chart(error_chart, color=["#ef4444", "#f59e0b"])
+
+        with t3:
+            st.caption("Quality Proxy (0-1)")
+            quality_chart = trend_df[["quality_proxy"]].copy()
+            quality_chart["SLO"] = SLO_QUALITY
+            st.line_chart(quality_chart, color=["#22c55e", "#f59e0b"])
+
+        t4, t5 = st.columns(2, gap="medium")
+        with t4:
+            st.caption("Cost Over Time (cumulative USD)")
+            st.line_chart(trend_df[["cost_total_usd"]], color="#10b981")
+        with t5:
+            st.caption("Tokens Over Time (cumulative)")
+            st.line_chart(trend_df[["tokens_in_total", "tokens_out_total"]], color=["#6366f1", "#f97316"])
 
     # Langfuse shortcut
     if LANGFUSE_ENABLED:
