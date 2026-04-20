@@ -23,10 +23,26 @@ CHAT_URL         = os.getenv("CHAT_URL", "http://localhost:8000/chat")
 LOG_FILE         = os.getenv("LOG_PATH", "data/logs.jsonl")
 LANGFUSE_HOST    = os.getenv("LANGFUSE_HOST", "https://us.cloud.langfuse.com")
 LANGFUSE_ENABLED = bool(os.getenv("LANGFUSE_PUBLIC_KEY", ""))
+HEALTH_URL       = os.getenv("HEALTH_URL", CHAT_URL.replace("/chat", "/health"))
 
 SLO_P95_MS  = 500
 SLO_ERR_PCT = 5.0
 SLO_QUALITY = 0.5
+HISTORY_RETENTION_SEC = 24 * 60 * 60
+TREND_WINDOWS = {"15m": 15 * 60, "30m": 30 * 60, "1h": 60 * 60, "3h": 3 * 60 * 60}
+
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+if "thumb_feedback" not in st.session_state:
+    st.session_state.thumb_feedback = []
+if "regenerate_count" not in st.session_state:
+    st.session_state.regenerate_count = 0
+if "last_chat_input" not in st.session_state:
+    st.session_state.last_chat_input = ""
+if "session_id" not in st.session_state:
+    st.session_state.session_id = f"s-dashboard-{int(time.time())}"
+if "metrics_history" not in st.session_state:
+    st.session_state.metrics_history = []
 
 # ─── Page setup ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -219,7 +235,7 @@ with st.sidebar:
     st.markdown("## 📡 AI Observability")
     st.markdown("---")
     page = st.radio(
-        "nav", ["📊 Overview", "📜 Logs"],
+        "nav", ["📊 Overview", "🤖 Chatbot", "📜 Logs"],
         label_visibility="collapsed"
     )
     st.markdown("---")
@@ -253,6 +269,21 @@ def fetch() -> dict:
         st.stop()
 
 
+def fetch_health() -> dict:
+    try:
+        r = requests.get(HEALTH_URL, timeout=3)
+        r.raise_for_status()
+        return r.json()
+    except Exception as e:
+        return {"ok": False, "error": str(e), "tracing_enabled": False, "incidents": {}}
+
+
+def send_chat(payload: dict) -> dict:
+    r = requests.post(CHAT_URL, json=payload, timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
 def badge(ok: bool, warn: bool = False) -> str:
     if ok:   return "<span class='badge badge-ok'>● OK</span>"
     if warn: return "<span class='badge badge-warn'>● WARN</span>"
@@ -266,11 +297,78 @@ def section(icon: str, title: str, status_html: str = "") -> None:
     )
 
 
+def append_metrics_history(data: dict) -> None:
+    now = pd.Timestamp.now(tz="UTC")
+    lat = data.get("latency", {})
+    errs = data.get("errors", {})
+    cost = data.get("cost", {})
+    tok = data.get("tokens", {})
+    qual = data.get("quality", {})
+
+    point = {
+        "ts": now.isoformat(),
+        "latency_p95": float(lat.get("p95", 0)),
+        "error_rate_pct": float(errs.get("error_rate_pct", 0)),
+        "quality_proxy": float(qual.get("proxy_score_avg", 0)),
+        "cost_total_usd": float(cost.get("total_usd", 0)),
+        "tokens_in_total": int(tok.get("in_total", 0)),
+        "tokens_out_total": int(tok.get("out_total", 0)),
+        "traffic": int(data.get("traffic", 0)),
+        "total_errors": int(errs.get("total_errors", 0)),
+    }
+
+    history = st.session_state.metrics_history
+    if history:
+        last = history[-1]
+        last_ts = pd.to_datetime(last.get("ts"), utc=True, errors="coerce")
+        if pd.notna(last_ts):
+            same_snapshot = all(
+                last.get(key) == point[key]
+                for key in (
+                    "latency_p95",
+                    "error_rate_pct",
+                    "quality_proxy",
+                    "cost_total_usd",
+                    "tokens_in_total",
+                    "tokens_out_total",
+                    "traffic",
+                    "total_errors",
+                )
+            )
+            if same_snapshot and (now - last_ts).total_seconds() < 2:
+                return
+
+    history.append(point)
+    cutoff = now - pd.Timedelta(seconds=HISTORY_RETENTION_SEC)
+    st.session_state.metrics_history = [
+        h for h in history if pd.to_datetime(h.get("ts"), utc=True, errors="coerce") >= cutoff
+    ]
+
+
+def metrics_history_df(window_seconds: int) -> pd.DataFrame:
+    history = st.session_state.metrics_history
+    if not history:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(history)
+    if "ts" not in df.columns:
+        return pd.DataFrame()
+
+    df["ts"] = pd.to_datetime(df["ts"], utc=True, errors="coerce")
+    df = df.dropna(subset=["ts"]).sort_values("ts")
+    if df.empty:
+        return df
+
+    cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(seconds=window_seconds)
+    return df[df["ts"] >= cutoff]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  PAGE: Overview
 # ═══════════════════════════════════════════════════════════════════════════════
 def page_overview():
     data = fetch()
+    append_metrics_history(data)
 
     lat   = data.get("latency", {})
     errs  = data.get("errors",  {})
@@ -325,7 +423,7 @@ def page_overview():
             # Preview table
             preview_df = pd.DataFrame(queries)[["user_id", "feature", "message"]]
             preview_df["message"] = preview_df["message"].str[:60] + "…"
-            st.dataframe(preview_df, width="stretch", hide_index=True)
+            st.dataframe(preview_df, use_container_width=True, hide_index=True)
 
             col_btn, col_status = st.columns([2, 5])
             if col_btn.button("▶ Send All Queries", type="primary"):
@@ -355,7 +453,7 @@ def page_overview():
 
                 progress.empty()
                 st.success(f"Finished {len(results)} requests — metrics updated, refresh to see changes.")
-                st.dataframe(pd.DataFrame(results), width="stretch", hide_index=True)
+                st.dataframe(pd.DataFrame(results), use_container_width=True, hide_index=True)
 
     # ─── Row 1: 3 panels ───────────────────────────────────────────────────────
     col1, col2, col3 = st.columns(3, gap="medium")
@@ -414,10 +512,215 @@ def page_overview():
         <div style="font-family:'JetBrains Mono',mono;font-size:.7rem;color:#6b7280;margin-top:4px">{int(bar*100)}% · SLO ≥ {int(SLO_QUALITY*100)}%</div>
         """, unsafe_allow_html=True)
 
+    st.markdown("---")
+    section("📈", "TRENDS")
+    range_col, note_col = st.columns([1, 3])
+    with range_col:
+        selected_window = st.select_slider(
+            "Time window",
+            options=list(TREND_WINDOWS.keys()),
+            value="1h",
+            key="overview_trend_window",
+        )
+    with note_col:
+        st.caption("Default range is 1 hour. SLO reference lines are overlaid on latency, error rate, and quality charts.")
+
+    trend_df = metrics_history_df(TREND_WINDOWS[selected_window])
+    if len(trend_df) < 2:
+        st.info("Need at least 2 snapshots to draw trends. Keep Live Mode on for a few refresh cycles.")
+    else:
+        trend_df = trend_df.set_index("ts")
+        t1, t2, t3 = st.columns(3, gap="medium")
+
+        with t1:
+            st.caption("Latency P95 (ms)")
+            latency_chart = trend_df[["latency_p95"]].copy()
+            latency_chart["SLO"] = SLO_P95_MS
+            st.line_chart(latency_chart, color=["#2563eb", "#ef4444"])
+
+        with t2:
+            st.caption("Error Rate (%)")
+            error_chart = trend_df[["error_rate_pct"]].copy()
+            error_chart["SLO"] = SLO_ERR_PCT
+            st.line_chart(error_chart, color=["#ef4444", "#f59e0b"])
+
+        with t3:
+            st.caption("Quality Proxy (0-1)")
+            quality_chart = trend_df[["quality_proxy"]].copy()
+            quality_chart["SLO"] = SLO_QUALITY
+            st.line_chart(quality_chart, color=["#22c55e", "#f59e0b"])
+
+        t4, t5 = st.columns(2, gap="medium")
+        with t4:
+            st.caption("Cost Over Time (cumulative USD)")
+            st.line_chart(trend_df[["cost_total_usd"]], color="#10b981")
+        with t5:
+            st.caption("Tokens Over Time (cumulative)")
+            st.line_chart(trend_df[["tokens_in_total", "tokens_out_total"]], color=["#6366f1", "#f97316"])
+
     # Langfuse shortcut
     if LANGFUSE_ENABLED:
         st.markdown("---")
         st.caption(f"🔗 Detailed traces → [Langfuse Cloud]({LANGFUSE_HOST})")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PAGE: Chatbot
+# ═══════════════════════════════════════════════════════════════════════════════
+def page_chatbot():
+    st.markdown("## 🤖 Chatbot Pickleball (LLM + RAG)")
+    st.caption("Hỏi đáp trực tiếp và theo dõi chỉ số observability theo thời gian thực.")
+
+    health = fetch_health()
+    data = fetch()
+
+    lat = data.get("latency", {})
+    errs = data.get("errors", {})
+    cost = data.get("cost", {})
+    tok = data.get("tokens", {})
+    qual = data.get("quality", {})
+
+    info_left, info_right = st.columns([2, 1])
+    with info_left:
+        st.markdown("### Thông tin chatbot")
+        st.write(
+            {
+                "chat_url": CHAT_URL,
+                "session_id": st.session_state.session_id,
+                "mục_đích": "Tư vấn mua bán pickleball, tra giá và chính sách",
+            }
+        )
+    with info_right:
+        st.markdown("### Trạng thái")
+        if health.get("ok"):
+            st.success("API đang hoạt động")
+        else:
+            st.error(f"Không truy cập được /health: {health.get('error', 'unknown error')}")
+        st.write(
+            {
+                "tracing_enabled": health.get("tracing_enabled", False),
+                "incidents": health.get("incidents", {}),
+            }
+        )
+
+    # 6 nhóm chỉ số chính
+    st.markdown("### Chỉ số Observability")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Latency P50", f"{lat.get('p50', 0):.0f} ms")
+    c2.metric("Latency P95", f"{lat.get('p95', 0):.0f} ms")
+    c3.metric("Latency P99", f"{lat.get('p99', 0):.0f} ms")
+
+    c4, c5 = st.columns(2)
+    c4.metric("Traffic (requests)", f"{data.get('traffic', 0):,}")
+    c5.metric("QPS", f"{data.get('qps_estimate', 0):.2f}")
+
+    c6, c7 = st.columns(2)
+    c6.metric("Error rate", f"{errs.get('error_rate_pct', 0):.2f}%")
+    c7.metric("Total errors", f"{errs.get('total_errors', 0)}")
+    if errs.get("breakdown"):
+        st.caption("Error breakdown")
+        st.json(errs.get("breakdown", {}))
+
+    c8, c9 = st.columns(2)
+    c8.metric("Cost total", f"${cost.get('total_usd', 0):.4f}")
+    c9.metric("Cost avg/request", f"${cost.get('avg_usd', 0):.5f}")
+
+    c10, c11 = st.columns(2)
+    c10.metric("Tokens in", f"{tok.get('in_total', 0):,}")
+    c11.metric("Tokens out", f"{tok.get('out_total', 0):,}")
+
+    thumbs_up = sum(1 for x in st.session_state.thumb_feedback if x == "up")
+    thumbs_down = sum(1 for x in st.session_state.thumb_feedback if x == "down")
+    total_fb = thumbs_up + thumbs_down
+    helpful_rate = (thumbs_up / total_fb * 100) if total_fb else 0.0
+    c12, c13, c14 = st.columns(3)
+    c12.metric("Quality proxy", f"{qual.get('proxy_score_avg', 0):.3f}")
+    c13.metric("Thumbs up rate", f"{helpful_rate:.1f}%")
+    c14.metric("Regenerate count", st.session_state.regenerate_count)
+
+    st.markdown("---")
+    st.markdown("### Hỏi đáp trực tiếp")
+
+    for msg in st.session_state.chat_messages:
+        role = msg.get("role", "assistant")
+        content = msg.get("content", "")
+        with st.chat_message(role):
+            st.markdown(content)
+            if role == "assistant" and "meta" in msg:
+                meta = msg["meta"]
+                st.caption(
+                    f"latency={meta.get('latency_ms', 0)}ms | "
+                    f"tokens_in={meta.get('tokens_in', 0)} | "
+                    f"tokens_out={meta.get('tokens_out', 0)} | "
+                    f"cost=${meta.get('cost_usd', 0)} | "
+                    f"quality={meta.get('quality_score', 0)}"
+                )
+
+    chat_input = st.chat_input("Nhập câu hỏi về giá, sản phẩm, bảo hành, đổi trả...")
+    if chat_input:
+        st.session_state.last_chat_input = chat_input
+        st.session_state.chat_messages.append({"role": "user", "content": chat_input})
+        try:
+            payload = {
+                "user_id": "u_dashboard",
+                "session_id": st.session_state.session_id,
+                "feature": "qa",
+                "message": chat_input,
+            }
+            answer = send_chat(payload)
+            st.session_state.chat_messages.append(
+                {
+                    "role": "assistant",
+                    "content": answer.get("answer", "Không có phản hồi."),
+                    "meta": {
+                        "latency_ms": answer.get("latency_ms", 0),
+                        "tokens_in": answer.get("tokens_in", 0),
+                        "tokens_out": answer.get("tokens_out", 0),
+                        "cost_usd": answer.get("cost_usd", 0.0),
+                        "quality_score": answer.get("quality_score", 0.0),
+                    },
+                }
+            )
+            st.rerun()
+        except Exception as e:
+            st.error(f"Gọi chatbot thất bại: {e}")
+
+    fb_col1, fb_col2, fb_col3 = st.columns([1, 1, 2])
+    if fb_col1.button("👍 Hữu ích"):
+        st.session_state.thumb_feedback.append("up")
+        st.success("Đã ghi nhận đánh giá tích cực")
+    if fb_col2.button("👎 Chưa tốt"):
+        st.session_state.thumb_feedback.append("down")
+        st.warning("Đã ghi nhận đánh giá cần cải thiện")
+    if fb_col3.button("🔁 Regenerate câu trả lời gần nhất"):
+        if not st.session_state.last_chat_input:
+            st.info("Chưa có câu hỏi gần nhất để tạo lại.")
+        else:
+            st.session_state.regenerate_count += 1
+            try:
+                payload = {
+                    "user_id": "u_dashboard",
+                    "session_id": st.session_state.session_id,
+                    "feature": "qa",
+                    "message": st.session_state.last_chat_input,
+                }
+                answer = send_chat(payload)
+                st.session_state.chat_messages.append(
+                    {
+                        "role": "assistant",
+                        "content": answer.get("answer", "Không có phản hồi."),
+                        "meta": {
+                            "latency_ms": answer.get("latency_ms", 0),
+                            "tokens_in": answer.get("tokens_in", 0),
+                            "tokens_out": answer.get("tokens_out", 0),
+                            "cost_usd": answer.get("cost_usd", 0.0),
+                            "quality_score": answer.get("quality_score", 0.0),
+                        },
+                    }
+                )
+                st.rerun()
+            except Exception as e:
+                st.error(f"Regenerate thất bại: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -463,7 +766,7 @@ def page_logs():
 
     st.dataframe(
         df,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "ts":         st.column_config.TextColumn("Timestamp"),
@@ -494,6 +797,8 @@ def page_logs():
 # ─── Router ────────────────────────────────────────────────────────────────────
 if page == "📊 Overview":
     page_overview()
+elif page == "🤖 Chatbot":
+    page_chatbot()
 else:
     page_logs()
 
