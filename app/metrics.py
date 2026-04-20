@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import time
 from collections import Counter
 from statistics import mean
+
+START_TIME = time.time()
 
 REQUEST_LATENCIES: list[int] = []
 REQUEST_COSTS: list[float] = []
@@ -38,15 +41,35 @@ def percentile(values: list[int], p: int) -> float:
 
 
 def snapshot() -> dict:
+    total_errors = sum(ERRORS.values())
+    error_rate = total_errors / TRAFFIC if TRAFFIC > 0 else 0.0
+    error_rate_pct = error_rate * 100
+    uptime = time.time() - START_TIME
+    qps_estimate = TRAFFIC / uptime if uptime > 0 else 0.0
+
     return {
+        "latency": {
+            "p50": percentile(REQUEST_LATENCIES, 50),
+            "p95": percentile(REQUEST_LATENCIES, 95),
+            "p99": percentile(REQUEST_LATENCIES, 99),
+        },
         "traffic": TRAFFIC,
-        "latency_p50": percentile(REQUEST_LATENCIES, 50),
-        "latency_p95": percentile(REQUEST_LATENCIES, 95),
-        "latency_p99": percentile(REQUEST_LATENCIES, 99),
-        "avg_cost_usd": round(mean(REQUEST_COSTS), 4) if REQUEST_COSTS else 0.0,
-        "total_cost_usd": round(sum(REQUEST_COSTS), 4),
-        "tokens_in_total": sum(REQUEST_TOKENS_IN),
-        "tokens_out_total": sum(REQUEST_TOKENS_OUT),
-        "error_breakdown": dict(ERRORS),
-        "quality_avg": round(mean(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
+        "qps_estimate": round(qps_estimate, 2),
+        "errors": {
+            "total_errors": total_errors,
+            "rate": round(error_rate, 4),
+            "error_rate_pct": round(error_rate_pct, 2),
+            "breakdown": dict(ERRORS),
+        },
+        "cost": {
+            "avg_usd": round(mean(REQUEST_COSTS), 4) if REQUEST_COSTS else 0.0,
+            "total_usd": round(sum(REQUEST_COSTS), 4),
+        },
+        "tokens": {
+            "in_total": sum(REQUEST_TOKENS_IN),
+            "out_total": sum(REQUEST_TOKENS_OUT),
+        },
+        "quality": {
+            "proxy_score_avg": round(mean(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
+        }
     }
