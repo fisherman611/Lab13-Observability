@@ -24,13 +24,13 @@
 ## 3. Technical Evidence (Group)
 
 ### 3.1 Logging & Tracing
-- [EVIDENCE_CORRELATION_ID_SCREENSHOT](screenshots\EVIDENCE_CORRELATION_ID_SCREENSHOT.jpg)
-- [EVIDENCE_PII_REDACTION_SCREENSHOT](screenshots\EVIDENCE_PII_REDACTION_SCREENSHOT.jpg)
-- [EVIDENCE_TRACE_WATERFALL_SCREENSHOT](screenshots\EVIDENCE_TRACE_WATERFALL_SCREENSHOT.jpg)
+- [EVIDENCE_CORRELATION_ID_SCREENSHOT](screenshots/EVIDENCE_CORRELATION_ID_SCREENSHOT.jpg)
+- [EVIDENCE_PII_REDACTION_SCREENSHOT](screenshots/EVIDENCE_PII_REDACTION_SCREENSHOT.jpg)
+- [EVIDENCE_TRACE_WATERFALL_SCREENSHOT](screenshots/EVIDENCE_TRACE_WATERFALL_SCREENSHOT.jpg)
 - **TRACE_WATERFALL_EXPLANATION**: Trace được gắn ở LabAgent.run() bằng @observe(), sau đó cập nhật trace/observation qua langfuse_context.update_current_trace() và update_current_observation() (metadata gồm doc_count, query_preview, usage input/output tokens). Span đáng chú ý là nhánh RAG khi incident rag_slow bật sẽ tạo trễ 2.5s trong app/rag.py.
 
 ### 3.2 Dashboard & SLOs
-- [DASHBOARD_6_PANELS_SCREENSHOT](screenshots\DASHBOARD_6_PANELS_SCREENSHOT.jpg)
+- [DASHBOARD_6_PANELS_SCREENSHOT](screenshots/DASHBOARD_6_PANELS_SCREENSHOT.jpg)
 
 **SLO_TABLE**:
 
@@ -43,7 +43,7 @@
 | PII Redaction | 100% | 28d | 100% |
 
 ### 3.3 Alerts & Runbook
-- [ALERT_RULES_SCREENSHOT](screenshots\ALERT_RULES_SCREENSHOT.png)
+- [ALERT_RULES_SCREENSHOT](screenshots/ALERT_RULES_SCREENSHOT.png)
 - **SAMPLE_RUNBOOK_LINK**: [High latency runbook](alerts.md#1-high-latency-p95)
 
 ---
